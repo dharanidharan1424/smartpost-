@@ -1,0 +1,68 @@
+// schema.prisma
+
+// 1. Database Configuration
+datasource db {
+  provider = "mongodb"
+  // This environment variable MUST point to your MongoDB connection string
+ 
+}
+
+// 2. Prisma Client Generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- NextAuth Models (For LinkedIn Login) ---
+
+// Stores the OAuth token and links it to a User.
+model Account {
+  // Use @db.ObjectId for MongoDB primary keys
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId // Foreign key to the User model
+  type              String
+  provider          String
+  providerAccountId String
+  // This is where LinkedIn stores the access_token you need for posting!
+  access_token      String? @db.String
+  refresh_token     String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// User Model (where general user info is stored)
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  
+  accounts      Account[]
+  posts         Post[]    // Relation to scheduled posts
+}
+
+// --- Application Model (Your Post Data) ---
+
+// Model for scheduled posts
+model Post {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String    @db.ObjectId       // Links the post back to the user
+  caption        String
+  imageURL       String?
+  scheduleTime   DateTime // The time when the post should go live
+  status         String    @default("Scheduled") // Status: Scheduled, Posting, Posted, Failed
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([scheduleTime])
+}
